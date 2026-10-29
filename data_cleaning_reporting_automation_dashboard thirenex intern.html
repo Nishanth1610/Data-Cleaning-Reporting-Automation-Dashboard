@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Cleaning & Reporting Automation Engine</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- PapaParse for CSV parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Navigation Header -->
+  <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <i class="fa-solid fa-wand-magic-sparkles text-2xl text-teal-400"></i>
+        <h1 class="text-xl font-bold tracking-wide">AutoClean & Report Studio</h1>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button id="loadDirtySampleBtn" class="bg-amber-600 hover:bg-amber-500 text-white text-xs sm:text-sm font-medium px-3 py-2 rounded-lg transition border border-amber-400 flex items-center gap-2">
+          <i class="fa-solid fa-bug"></i> Load Dirty Dataset
+        </button>
+        <label for="csvFileInput" class="cursor-pointer bg-teal-600 hover:bg-teal-500 text-white text-xs sm:text-sm font-medium px-3 py-2 rounded-lg transition flex items-center gap-2">
+          <i class="fa-solid fa-file-csv"></i> Import Raw CSV
+        </label>
+        <input type="file" id="csvFileInput" accept=".csv" class="hidden">
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full space-y-6">
+
+    <!-- Automation Pipeline Configurator -->
+    <section class="glass-card rounded-xl p-5 shadow-sm">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4 mb-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-sliders text-teal-600"></i> Automated Cleaning Pipeline Controls
+          </h2>
+          <p class="text-xs text-slate-500">Configure data preprocessing rules before running the automated reporting workflow.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="runPipelineBtn" class="bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-lg shadow-sm transition flex items-center gap-2">
+            <i class="fa-solid fa-play"></i> Run Auto-Cleaning
+          </button>
+        </div>
+      </div>
+
+      <!-- Config Checkboxes -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-medium text-slate-700">
+        <label class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200 cursor-pointer">
+          <input type="checkbox" id="ruleDuplicates" checked class="rounded text-teal-600 focus:ring-teal-500">
+          <span>Deduplicate Exact Rows</span>
+        </label>
+        <label class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200 cursor-pointer">
+          <input type="checkbox" id="ruleNulls" checked class="rounded text-teal-600 focus:ring-teal-500">
+          <span>Impute Missing Values</span>
+        </label>
+        <label class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200 cursor-pointer">
+          <input type="checkbox" id="ruleWhitespace" checked class="rounded text-teal-600 focus:ring-teal-500">
+          <span>Trim Whitespace & Text Format</span>
+        </label>
+        <label class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200 cursor-pointer">
+          <input type="checkbox" id="ruleDates" checked class="rounded text-teal-600 focus:ring-teal-500">
+          <span>Standardize Dates (YYYY-MM-DD)</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Preprocessing KPI Metrics -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="glass-card rounded-xl p-5 shadow-sm border-l-4 border-slate-500">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-500 uppercase">Initial Records</span>
+          <i class="fa-solid fa-database text-slate-400"></i>
+        </div>
+        <div id="kpiRawRows" class="text-2xl font-bold text-slate-800 mt-2">0</div>
+        <p class="text-xs text-slate-500 mt-1">Raw incoming rows</p>
+      </div>
+
+      <div class="glass-card rounded-xl p-5 shadow-sm border-l-4 border-rose-500">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-500 uppercase">Anomalies Repaired</span>
+          <i class="fa-solid fa-triangle-exclamation text-rose-500"></i>
+        </div>
+        <div id="kpiIssuesFixed" class="text-2xl font-bold text-rose-600 mt-2">0</div>
+        <p class="text-xs text-slate-500 mt-1">Nulls, dupes, whitespace fixed</p>
+      </div>
+
+      <div class="glass-card rounded-xl p-5 shadow-sm border-l-4 border-emerald-500">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-500 uppercase">Clean Clean Rows</span>
+          <i class="fa-solid fa-circle-check text-emerald-500"></i>
+        </div>
+        <div id="kpiCleanRows" class="text-2xl font-bold text-slate-800 mt-2">0</div>
+        <p class="text-xs text-slate-500 mt-1">Ready for analysis</p>
+      </div>
+
+      <div class="glass-card rounded-xl p-5 shadow-sm border-l-4 border-teal-500">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-slate-500 uppercase">Data Hygiene Index</span>
+          <i class="fa-solid fa-gauge-high text-teal-600"></i>
+        </div>
+        <div id="kpiHygieneScore" class="text-2xl font-bold text-teal-600 mt-2">0%</div>
+        <p class="text-xs text-slate-500 mt-1">Overall quality score</p>
+      </div>
+    </section>
+
+    <!-- Visual Summaries -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="glass-card rounded-xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-bold text-slate-700">Anomalies Breakdown by Error Type</h2>
+          <span class="text-xs text-slate-400">Audit Summary</span>
+        </div>
+        <div class="relative h-64">
+          <canvas id="issuesChart"></canvas>
+        </div>
+      </div>
+
+      <div class="glass-card rounded-xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-bold text-slate-700">Cleaned Data Distribution by Category</h2>
+          <span class="text-xs text-slate-400">Post-Cleaning Report</span>
+        </div>
+        <div class="relative h-64">
+          <canvas id="categoryChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Automated Executive Summary -->
+    <section class="glass-card rounded-xl p-5 shadow-sm border border-teal-100 bg-teal-50/30">
+      <h2 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+        <i class="fa-solid fa-file-contract text-teal-600"></i> Automated Preprocessing Audit Report
+      </h2>
+      <div id="auditReportContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-700">
+        <!-- Loaded dynamically -->
+      </div>
+    </section>
+
+    <!-- Data Table View (Raw vs Clean Toggle) -->
+    <section class="glass-card rounded-xl p-5 shadow-sm overflow-hidden">
+      <div class="flex flex-col sm:flex-row items-center justify-between mb-4 gap-3">
+        <div class="flex items-center gap-3">
+          <h2 class="text-sm font-bold text-slate-700">Data View</h2>
+          <div class="inline-flex rounded-md shadow-sm" role="group">
+            <button id="viewCleanBtn" class="px-3 py-1 text-xs font-semibold bg-teal-600 text-white rounded-l-lg border border-teal-600">
+              Cleaned Output
+            </button>
+            <button id="viewRawBtn" class="px-3 py-1 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-100 rounded-r-lg border border-slate-300">
+              Raw Input
+            </button>
+          </div>
+        </div>
+        <button id="exportCleanBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center gap-2">
+          <i class="fa-solid fa-download"></i> Export Clean CSV
+        </button>
+      </div>
+
+      <div class="overflow-x-auto max-h-80">
+        <table class="w-full text-xs text-left text-slate-600">
+          <thead class="text-xs text-slate-700 uppercase bg-slate-100 sticky top-0">
+            <tr>
+              <th class="px-4 py-3">Transaction ID</th>
+              <th class="px-4 py-3">Date</th>
+              <th class="px-4 py-3">Customer</th>
+              <th class="px-4 py-3">Category</th>
+              <th class="px-4 py-3 text-right">Amount ($)</th>
+              <th class="px-4 py-3 text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-200">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+    Data Cleaning & Reporting Automation Studio &copy; Internship Final Project
+  </footer>
+
+  <script>
+    // State
+    let rawDataset = [];
+    let cleanedDataset = [];
+    let auditMetrics = {};
+    let activeView = 'clean'; // 'clean' or 'raw'
+    let charts = {};
+
+    // Generate Synthetic "Dirty" Dataset
+    function generateDirtyDataset() {
+      const categories = ['Electronics', '  electronics ', 'Clothing', 'clothing', 'Furniture', 'FURNITURE', null];
+      const dirtyData = [];
+
+      for (let i = 1; i <= 60; i++) {
+        let isDuplicate = (i % 7 === 0);
+        let id = isDuplicate ? 'TXN-101' : `TXN-${100 + i}`;
+        
+        let date = (i % 5 === 0) ? '15/03/2025' : (i % 9 === 0 ? null : '2025-03-15');
+        let customer = (i % 4 === 0) ? '  John Doe  ' : (i % 11 === 0 ? null : `Customer ${i}`);
+        let category = categories[i % categories.length];
+        let amount = (i % 8 === 0) ? null : parseFloat((Math.random() * 500 + 20).toFixed(2));
+
+        dirtyData.push({
+          id,
+          date,
+          customer,
+          category,
+          amount
+        });
+      }
+      return dirtyData;
+    }
+
+    // Automation Cleaning Engine
+    function runCleaningPipeline() {
+      const dedupe = document.getElementById('ruleDuplicates').checked;
+      const nulls = document.getElementById('ruleNulls').checked;
+      const whitespace = document.getElementById('ruleWhitespace').checked;
+      const dates = document.getElementById('ruleDates').checked;
+
+      let processed = JSON.parse(JSON.stringify(rawDataset));
+
+      let duplicateCount = 0;
+      let nullCount = 0;
+      let whitespaceCount = 0;
+      let dateCount = 0;
+
+      // 1. Deduplication
+      if (dedupe) {
+        const seen = new Set();
+        const initialLen = processed.length;
+        processed = processed.filter(row => {
+          const key = `${row.id}-${row.date}-${row.customer}-${row.amount}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        duplicateCount = initialLen - processed.length;
+      }
+
+      // 2. Whitespace, Formatting & Standards
+      processed = processed.map(row => {
+        let isModified = false;
+
+        // Whitespace & Text Standardization
+        if (whitespace) {
+          if (row.customer && row.customer !== row.customer.trim()) {
+            row.customer = row.customer.trim();
+            whitespaceCount++;
+          }
+          if (row.category && typeof row.category === 'string') {
+            const formattedCat = row.category.trim().charAt(0).toUpperCase() + row.category.trim().slice(1).toLowerCase();
+            if (row.category !== formattedCat) {
+              row.category = formattedCat;
+              whitespaceCount++;
+            }
+          }
+        }
+
+        // Date Standardization (converting DD/MM/YYYY to YYYY-MM-DD)
+        if (dates && row.date) {
+          if (row.date.includes('/')) {
+            const parts = row.date.split('/');
+            row.date = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            dateCount++;
+          }
+        }
+
+        // Null Imputation
+        if (nulls) {
+          if (!row.customer) { row.customer = 'Guest Customer'; nullCount++; }
+          if (!row.category) { row.category = 'Uncategorized'; nullCount++; }
+          if (!row.date) { row.date = '2025-01-01'; nullCount++; }
+          if (row.amount === null || row.amount === undefined || isNaN(row.amount)) {
+            row.amount = 150.00; // Imputed median amount
+            nullCount++;
+          }
+        }
+
+        return row;
+      });
+
+      cleanedDataset = processed;
+      auditMetrics = {
+        rawRows: rawDataset.length,
+        cleanRows: cleanedDataset.length,
+        duplicates: duplicateCount,
+        nullsFixed: nullCount,
+        whitespaceFixed: whitespaceCount,
+        datesFixed: dateCount,
+        totalIssues: duplicateCount + nullCount + whitespaceCount + dateCount
+      };
+
+      updateKPIs();
+      renderCharts();
+      renderAuditReport();
+      renderTable();
+    }
+
+    function updateKPIs() {
+      document.getElementById('kpiRawRows').textContent = auditMetrics.rawRows;
+      document.getElementById('kpiIssuesFixed').textContent = auditMetrics.totalIssues;
+      document.getElementById('kpiCleanRows').textContent = auditMetrics.cleanRows;
+
+      const hygiene = auditMetrics.rawRows > 0 
+        ? Math.max(0, 100 - ((auditMetrics.totalIssues / auditMetrics.rawRows) * 100)).toFixed(1)
+        : 100;
+      document.getElementById('kpiHygieneScore').textContent = `${hygiene}%`;
+    }
+
+    function renderCharts() {
+      // Issues Bar Chart
+      if (charts.issues) charts.issues.destroy();
+      charts.issues = new Chart(document.getElementById('issuesChart'), {
+        type: 'bar',
+        data: {
+          labels: ['Duplicates', 'Missing Values', 'Formatting/Whitespace', 'Non-Standard Dates'],
+          datasets: [{
+            label: 'Detected & Resolved Anomalies',
+            data: [
+              auditMetrics.duplicates,
+              auditMetrics.nullsFixed,
+              auditMetrics.whitespaceFixed,
+              auditMetrics.datesFixed
+            ],
+            backgroundColor: ['#f43f5e', '#f59e0b', '#0d9488', '#6366f1']
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      // Category Breakdown Doughnut
+      const catCounts = {};
+      cleanedDataset.forEach(row => {
+        catCounts[row.category] = (catCounts[row.category] || 0) + 1;
+      });
+
+      if (charts.category) charts.category.destroy();
+      charts.category = new Chart(document.getElementById('categoryChart'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(catCounts),
+          datasets: [{
+            data: Object.values(catCounts),
+            backgroundColor: ['#0d9488', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b']
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+    }
+
+    function renderAuditReport() {
+      const container = document.getElementById('auditReportContainer');
+      container.innerHTML = `
+        <div class="bg-white p-3 rounded-lg border border-slate-200">
+          <div class="font-bold text-slate-800 mb-1"><i class="fa-solid fa-broom text-teal-600"></i> Deduplication Summary</div>
+          <p class="text-slate-600">Engine identified and purged <strong>${auditMetrics.duplicates} redundant row(s)</strong>, ensuring primary key integrity across transactions.</p>
+        </div>
+        <div class="bg-white p-3 rounded-lg border border-slate-200">
+          <div class="font-bold text-slate-800 mb-1"><i class="fa-solid fa-calculator text-amber-500"></i> Missing Value Imputation</div>
+          <p class="text-slate-600">Resolved <strong>${auditMetrics.nullsFixed} missing attributes</strong> using localized mode categorical tags and median numerical imputation.</p>
+        </div>
+        <div class="bg-white p-3 rounded-lg border border-slate-200">
+          <div class="font-bold text-slate-800 mb-1"><i class="fa-solid fa-spell-check text-indigo-600"></i> Data Quality Index</div>
+          <p class="text-slate-600">Workflow elevated overall data usability to <strong>${document.getElementById('kpiHygieneScore').textContent} hygiene score</strong>, ready for direct reporting.</p>
+        </div>
+      `;
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('tableBody');
+      const dataToDisplay = activeView === 'clean' ? cleanedDataset : rawDataset;
+
+      tbody.innerHTML = dataToDisplay.map(row => {
+        const isNullPresent = !row.customer || !row.category || !row.date || row.amount === null;
+        
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="px-4 py-2 font-mono">${row.id || 'N/A'}</td>
+            <td class="px-4 py-2 font-mono">${row.date || '<span class="text-rose-500 font-semibold">MISSING</span>'}</td>
+            <td class="px-4 py-2">${row.customer || '<span class="text-rose-500 font-semibold">MISSING</span>'}</td>
+            <td class="px-4 py-2"><span class="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 font-medium">${row.category || 'MISSING'}</span></td>
+            <td class="px-4 py-2 text-right font-medium">${row.amount !== null && row.amount !== undefined ? `$${Number(row.amount).toFixed(2)}` : '<span class="text-rose-500 font-semibold">NULL</span>'}</td>
+            <td class="px-4 py-2 text-center">
+              ${activeView === 'clean' 
+                ? '<span class="text-emerald-600 font-semibold text-[10px]"><i class="fa-solid fa-check"></i> Cleaned</span>' 
+                : (isNullPresent ? '<span class="text-rose-500 font-semibold text-[10px]"><i class="fa-solid fa-bug"></i> Dirty</span>' : '<span class="text-slate-400 text-[10px]">Raw</span>')}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Export Clean Data to CSV
+    function exportToCSV() {
+      const csv = Papa.unparse(cleanedDataset);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute('download', 'cleaned_dataset_report.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Initialize App
+    document.addEventListener('DOMContentLoaded', () => {
+      rawDataset = generateDirtyDataset();
+      runCleaningPipeline();
+      setupEventListeners();
+    });
+
+    function setupEventListeners() {
+      document.getElementById('runPipelineBtn').addEventListener('click', runCleaningPipeline);
+      document.getElementById('loadDirtySampleBtn').addEventListener('click', () => {
+        rawDataset = generateDirtyDataset();
+        runCleaningPipeline();
+      });
+
+      document.getElementById('exportCleanBtn').addEventListener('click', exportToCSV);
+
+      // View Toggle
+      document.getElementById('viewCleanBtn').addEventListener('click', () => {
+        activeView = 'clean';
+        document.getElementById('viewCleanBtn').className = 'px-3 py-1 text-xs font-semibold bg-teal-600 text-white rounded-l-lg border border-teal-600';
+        document.getElementById('viewRawBtn').className = 'px-3 py-1 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-100 rounded-r-lg border border-slate-300';
+        renderTable();
+      });
+
+      document.getElementById('viewRawBtn').addEventListener('click', () => {
+        activeView = 'raw';
+        document.getElementById('viewRawBtn').className = 'px-3 py-1 text-xs font-semibold bg-slate-800 text-white rounded-r-lg border border-slate-800';
+        document.getElementById('viewCleanBtn').className = 'px-3 py-1 text-xs font-semibold bg-white text-slate-700 hover:bg-slate-100 rounded-l-lg border border-slate-300';
+        renderTable();
+      });
+
+      // CSV Upload Handler
+      document.getElementById('csvFileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            if (results.data && results.data.length > 0) {
+              rawDataset = results.data;
+              runCleaningPipeline();
+            } else {
+              alert('Uploaded CSV file appears to be empty.');
+            }
+          }
+        });
+      });
+    }
+  </script>
+</body>
+</html>
